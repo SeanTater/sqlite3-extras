@@ -15,17 +15,6 @@
 #include <sqlite3ext.h>
 SQLITE_EXTENSION_INIT1
 
-#ifndef CACHE_SIZE
-#define CACHE_SIZE 16
-#endif
-
-/* Captures, for sub()
- * See PCRE doc: slices are only the first 2/3 of the real space.
- */
-#ifndef MAX_CAPTURES
-#define MAX_CAPTURES 64
-#endif
-
 using namespace std;
 using namespace boost;
 
@@ -57,10 +46,8 @@ public:
 };
 
 extern "C" {
-
     /**
-     * Match a regular expression, as in
-     * SELECT * FROM table WHERE field REGEXP 'some regex';
+     * @brief Match a regular expression, giving a boolean.
      */
     void match(sqlite3_context *ctx, int argc, sqlite3_value **argv)
     {
@@ -92,6 +79,11 @@ extern "C" {
         return;
     }
 
+    /**
+     * @brief Search a string with a regex.
+     *
+     * This differs from match. See Boost::regex for more information.
+     */
     void search(sqlite3_context *ctx, int argc, sqlite3_value **argv)
     {
         const char *re, *str;
@@ -122,6 +114,10 @@ extern "C" {
         return;
     }
 
+    /**
+     * @brief Substitute regex matches with a formatted string.
+     * For more information about the string format, see Boost::regex or the README.
+     */
     void sub(sqlite3_context *ctx, int argc, sqlite3_value **argv)
     {
         const char *re, *str, *format;
