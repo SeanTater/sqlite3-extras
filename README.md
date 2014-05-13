@@ -19,7 +19,7 @@ Examples
 --------
 ```sql
     SELECT * FROM table WHERE column MATCH "<tag [^>]+>";
-    SELECT * FROM table WHERE column MATCH "is the (thir|four)teenth of May";
+    SELECT * FROM table WHERE column SEARCH "is the (thir|four)teenth of May";
     SELECT sub("(thir|four)teenth", "eighteenth", column) FROM table;
 ```
 
@@ -40,4 +40,6 @@ sudo mv reutil.so /usr/lib/sqlite/
 echo '.load /usr/lib/sqlite/reutil.so' >>~/.sqlite3
 ```
 
-Packaged versions are planned for Linux distributions. Windows packages would be welcome.
+TODO
+----
+Packaged versions are planned for Linux distributions. Windows installers would be welcome.
