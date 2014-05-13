@@ -37,7 +37,7 @@ g++ -fPIC -shared reutil.cpp -o sqlite3-reutil.so -Wl,--whole-archive -lboost_re
 sudo chown root.root reutil.so
 sudo mv reutil.so /usr/lib/sqlite/
 # Setup to load automatically when you run sqlite3 from the terminal
-echo '.load /usr/lib/sqlite/reutil.so' >>~/.sqlite3
+echo '.load /usr/lib/sqlite/reutil.so' >>~/.sqlite3rc
 ```
 
 TODO
