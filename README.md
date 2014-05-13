@@ -20,7 +20,7 @@ Examples
 ```sql
     SELECT * FROM table WHERE column MATCH "<tag [^>]+>";
     SELECT * FROM table WHERE column SEARCH "is the (thir|four)teenth of May";
-    SELECT sub("\w+ lives by lake \w+", "$1 thinks $2 is cool.", column) FROM table;
+    SELECT sub("(\w+) lives by lake (\w+)", "$1 thinks $2 is cool.", column) FROM table;
 ```
 
 Install
