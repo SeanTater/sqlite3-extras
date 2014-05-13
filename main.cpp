@@ -36,18 +36,22 @@ class SQLite3Regex {
 private:
     // TODO: actually implement a cache
 public:
-    bool match(string re, string str)
+    bool match(string re_str, string subject)
     {
-        // Before adding back a cache, let's see a use case for it
-        regex r(re);
-        return regex_match(str, r);
+        regex r(re_str);
+        return regex_match(subject, r);
     }
 
-    bool search(string re, string str)
+    bool search(string re_str, string subject)
     {
-        // Before adding back a cache, let's see a use case for it
-        regex r(re);
-        return regex_search(str, r);
+        regex r(re_str);
+        return regex_search(subject, r);
+    }
+
+    string sub(string re_str, string format, string subject)
+    {
+        regex r(re_str);
+        return regex_replace(subject, r, format);
     }
 
 };
@@ -78,7 +82,13 @@ extern "C" {
             return;
         }
 
-        sqlite3_result_int(ctx, regex_mod->match(re, str));
+        // Catch all for regex errors and API cleanliness
+        try {
+            sqlite3_result_int(ctx, regex_mod->match(re, str));
+        } catch (const regex_error& e) {
+            sqlite3_result_error(ctx, e.what(), -1);
+        }
+
         return;
     }
 
@@ -102,7 +112,48 @@ extern "C" {
             return;
         }
 
-        sqlite3_result_int(ctx, regex_mod->search(re, str));
+
+        // Catch all for regex errors and API cleanliness
+        try {
+            sqlite3_result_int(ctx, regex_mod->search(re, str));
+        } catch (const regex_error& e) {
+            sqlite3_result_error(ctx, e.what(), -1);
+        }
+        return;
+    }
+
+    void sub(sqlite3_context *ctx, int argc, sqlite3_value **argv)
+    {
+        const char *re, *str, *format;
+        assert(argc == 3);
+
+        SQLite3Regex * regex_mod = (SQLite3Regex *) sqlite3_user_data(ctx);
+        assert(regex_mod);
+
+        re = (const char *) sqlite3_value_text(argv[0]);
+        if (!re) {
+            sqlite3_result_error(ctx, "no regexp", -1);
+            return;
+        }
+
+        format = (const char *) sqlite3_value_text(argv[1]);
+        if (!format) {
+            sqlite3_result_error(ctx, "no format", -1);
+            return;
+        }
+
+        str = (const char *) sqlite3_value_text(argv[2]);
+        if (!str) {
+            sqlite3_result_error(ctx, "no string", -1);
+            return;
+        }
+
+        // Catch all for regex errors and API cleanliness
+        try {
+            sqlite3_result_text(ctx, regex_mod->sub(re, format, str).data(), -1, SQLITE_TRANSIENT);
+        } catch (const regex_error& e) {
+            sqlite3_result_error(ctx, e.what(), -1);
+        }
         return;
     }
 
@@ -112,6 +163,7 @@ extern "C" {
             SQLite3Regex * regex_inst = new SQLite3Regex();
             sqlite3_create_function(db, "MATCH", 2, SQLITE_UTF8, regex_inst, match, NULL, NULL);
             sqlite3_create_function(db, "SEARCH", 2, SQLITE_UTF8, regex_inst, search, NULL, NULL);
+            sqlite3_create_function(db, "SUB", 3, SQLITE_UTF8, regex_inst, sub, NULL, NULL);
             return 0;
     }
 
