@@ -43,7 +43,7 @@ To begin using it, do any of the following:
 FAQ
 ---
 
-## Error: unknown command or invalid arguments:  "load". Enter ".help" for help
+### Error: unknown command or invalid arguments:  "load". Enter ".help" for help
 Your SQLite3 installation has runtime extensions disabled at compile time.
 (As of this writing `brew` does this.) Recompiling sqlite3 is painless, though.
 Download the [amalgamation](https://www.sqlite.org/download.html) and do
