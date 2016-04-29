@@ -1,12 +1,3 @@
-/*
- * Written by Alexey Tourbin <at@altlinux.org>.
- * Later rewritten by Sean Gallagher <stgallag@gmail.com>
- *
- * The author has dedicated the code to the public domain.  Anyone is free
- * to copy, modify, publish, use, compile, sell, or distribute the original
- * code, either in source code form or as a compiled binary, for any purpose,
- * commercial or non-commercial, and by any means.
- */
 #include <assert.h>
 #include <stdlib.h>
 #include <string.h>
@@ -15,7 +6,6 @@
 #include <sqlite3ext.h>
 SQLITE_EXTENSION_INIT1
 
-using namespace std;
 using namespace boost;
 
 /**
@@ -25,19 +15,19 @@ class SQLite3Regex {
 private:
     // TODO: actually implement a cache
 public:
-    bool match(string re_str, string subject)
+    bool match(std::string re_str, std::string subject)
     {
         regex r(re_str);
         return regex_match(subject, r);
     }
 
-    bool search(string re_str, string subject)
+    bool search(std::string re_str, std::string subject)
     {
         regex r(re_str);
         return regex_search(subject, r);
     }
 
-    string sub(string re_str, string format, string subject)
+    std::string sub(std::string re_str, std::string format, std::string subject)
     {
         regex r(re_str);
         return regex_replace(subject, r, format);
