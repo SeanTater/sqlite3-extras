@@ -29,17 +29,41 @@ Install
 It includes a QMake project file, but you can also compile it by hand. It's very small.
 ```sh
 # Download
-git pull https://github.com/SeanTater/sqlite3-reutil.git
-cd sqlite3-reutil
-# Compile
-g++ -fPIC -shared reutil.cpp -o sqlite3-reutil.so -Wl,--whole-archive -lboost_regex -Wl,--no-whole-archive
-# Install: Replace with su if necessary
-sudo chown root.root reutil.so
-sudo mv reutil.so /usr/lib/sqlite/
-# Setup to load automatically when you run sqlite3 from the terminal
-echo '.load /usr/lib/sqlite/reutil.so' >>~/.sqliterc
+git pull https://github.com/SeanTater/sqlite3-reutil.git && cd sqlite3-reutil
+make
 ```
+To begin using it, do any of the following:
+  - Open an `sqlite3` window, and  `.load sqlite3-reutil`, then do as you please.
+  - OR, use `SELECT load_extension('/path/to/sqlite3-reutil.so')`
+    (replacing .so with .dylib on Mac, or .dll on Windows)
+  - OR, put `.load sqlite3-reutil` in `~/.sqliterc` so that it will load
+    automatically every time you open `sqlite3`.
 
-TODO
-----
-Packaged versions are planned for Linux distributions. Windows installers would be welcome.
+
+FAQ
+---
+
+## Error: unknown command or invalid arguments:  "load". Enter ".help" for help
+Your SQLite3 installation has runtime extensions disabled at compile time.
+(As of this writing `brew` does this.) Recompiling sqlite3 is painless, though.
+Download the [amalgamation](https://www.sqlite.org/download.html) and do
+something like the following:
+
+```sh
+gcc -O3 -I. \
+    -DSQLITE_ENABLE_FTS3 \
+    -DSQLITE_ENABLE_FTS4 \
+    -DSQLITE_ENABLE_FTS5 \
+    -DSQLITE_ENABLE_JSON1 \
+    -DSQLITE_ENABLE_RTREE \
+    -DSQLITE_ENABLE_EXPLAIN_COMMENTS \
+    -DSQLITE_THREADSAFE=2 \
+    -DHAVE_USLEEP \
+    -DHAVE_READLINE \
+    shell.c sqlite3.c -ldl -lreadline -lncurses -o sqlite3
+```
+Then you'll have an `sqlite3` binary you can use with extensions. If you want to
+play with it or know more about what this does, check the
+[options list](https://www.sqlite.org/compile.html)
+and also check out
+[how to compile sqlite](https://www.sqlite.org/howtocompile.html).
