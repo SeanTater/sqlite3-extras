@@ -57,7 +57,7 @@ extern "C" {
    */
   void search(sqlite3_context *ctx, int argc, sqlite3_value **argv) {
     const char *re = getSQLiteString(ctx, argv[0], "search", "regular expression");
-    const char *subject = getSQLiteString(ctx, argv[1], "subject", "regular expression");
+    const char *subject = getSQLiteString(ctx, argv[1], "search", "subject");
     if (!re || !subject) return;
 
     // Catch all for regex errors and API cleanliness
@@ -104,7 +104,8 @@ extern "C" {
    switch (sqlite3_value_type(arg)) {
      case SQLITE_INTEGER:
      case SQLITE_FLOAT:
-       return sqlite3_result_double(ctx, unop(sqlite3_value_double(arg)));;
+       sqlite3_result_double(ctx, unop(sqlite3_value_double(arg)));
+       break;
      case SQLITE_BLOB: {
        int len = sqlite3_value_bytes(arg) / sizeof(double);
        double *vec = (double*) sqlite3_value_blob(arg);
@@ -113,6 +114,7 @@ extern "C" {
          result_vec[i] = unop(vec[i]);
        }
        sqlite3_result_blob(ctx, result_vec, len*sizeof(double), SQLITE_TRANSIENT);
+       break;
      }
      default:
        sqlite3_result_error(ctx,
@@ -121,6 +123,7 @@ extern "C" {
          "\tPerforming operations on an empty vector, \n"\
          "\tUsing text as a vector or scalar (convert them first with cast() or vread()),\n"\
          "\tNot space-separating values for vread().", -1);
+      break;
    }
   }
 
@@ -244,20 +247,35 @@ extern "C" {
   }
 
   // Add two vectors
-  void sqlvadd(sqlite3_context *ctx, int argc, sqlite3_value **argv) {
+  void sqladd(sqlite3_context *ctx, int argc, sqlite3_value **argv) {
     vbinop(ctx, argv, [](double a, double b){ return a + b; });
   }
   // Subtract the second vector from the first
-  void sqlvsub(sqlite3_context *ctx, int argc, sqlite3_value **argv) {
+  void sqlsubtract(sqlite3_context *ctx, int argc, sqlite3_value **argv) {
     vbinop(ctx, argv, [](double a, double b){ return a - b; });
   }
   // Multiply two vectors
-  void sqlvmult(sqlite3_context *ctx, int argc, sqlite3_value **argv) {
+  void sqlmult(sqlite3_context *ctx, int argc, sqlite3_value **argv) {
     vbinop(ctx, argv, [](double a, double b){ return a * b; });
   }
   // Divide two vectors
-  void sqlvdiv(sqlite3_context *ctx, int argc, sqlite3_value **argv) {
+  void sqldiv(sqlite3_context *ctx, int argc, sqlite3_value **argv) {
     vbinop(ctx, argv, [](double a, double b){ return a / b; });
+  }
+
+  // Compute the dot product: It's not the most numerically stable way though.
+  void sqlvsum(sqlite3_context *ctx, int argc, sqlite3_value **argv) {
+    if (sqlite3_value_type(argv[0]) != SQLITE_BLOB) {
+      sqlite3_result_error(ctx, "Vector sum requires a vector.", -1);
+      return;
+    }
+    int len = sqlite3_value_bytes(argv[0]) / sizeof(double);
+    double *vec = (double*) sqlite3_value_blob(argv[0]);
+    double end = 0.0;
+    for (int i=0; i<len; i++) {
+      end += vec[i];
+    }
+    sqlite3_result_double(ctx, end);
   }
 
   // Read a vector from a space separated string
@@ -309,10 +327,11 @@ extern "C" {
     //sqlite3_create_function(db, "vcollapse", 1, SQLITE_UTF8 | SQLITE_DETERMINISTIC, NULL, sqlvcollase, NULL, NULL);
     sqlite3_create_function(db, "vzero", 1, SQLITE_UTF8 | SQLITE_DETERMINISTIC, NULL, sqlvzero, NULL, NULL);
     sqlite3_create_function(db, "vone", 1, SQLITE_UTF8 | SQLITE_DETERMINISTIC, NULL, sqlvone, NULL, NULL);
-    sqlite3_create_function(db, "add", 2, SQLITE_UTF8 | SQLITE_DETERMINISTIC, NULL, sqlvadd, NULL, NULL);
-    sqlite3_create_function(db, "sub", 2, SQLITE_UTF8 | SQLITE_DETERMINISTIC, NULL, sqlvsub, NULL, NULL);
-    sqlite3_create_function(db, "mult", 2, SQLITE_UTF8 | SQLITE_DETERMINISTIC, NULL, sqlvmult, NULL, NULL);
-    sqlite3_create_function(db, "div", 2, SQLITE_UTF8 | SQLITE_DETERMINISTIC, NULL, sqlvdiv, NULL, NULL);
+    sqlite3_create_function(db, "add", 2, SQLITE_UTF8 | SQLITE_DETERMINISTIC, NULL, sqladd, NULL, NULL);
+    sqlite3_create_function(db, "subtract", 2, SQLITE_UTF8 | SQLITE_DETERMINISTIC, NULL, sqlsubtract, NULL, NULL);
+    sqlite3_create_function(db, "mult", 2, SQLITE_UTF8 | SQLITE_DETERMINISTIC, NULL, sqlmult, NULL, NULL);
+    sqlite3_create_function(db, "div", 2, SQLITE_UTF8 | SQLITE_DETERMINISTIC, NULL, sqldiv, NULL, NULL);
+    sqlite3_create_function(db, "vsum", 1, SQLITE_UTF8 | SQLITE_DETERMINISTIC, NULL, sqlvsum, NULL, NULL);
     return 0;
   }
 }

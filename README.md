@@ -63,7 +63,8 @@ The following functions are included:
   - `subtract(V, V)`
   - `mult(V, V)`
   - `div(V, V)`
-
+ - Vector operations (operate only on vectors)
+  - `vsum(V)`: Compute the sum of a vector.
 Install
 -------
 
