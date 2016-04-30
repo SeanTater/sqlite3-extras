@@ -66,6 +66,7 @@ The following functions are included:
  - Vector operations (operate only on vectors)
     - `vsum(V)`: Compute the sum of a vector
 
+
 Install
 -------
 
