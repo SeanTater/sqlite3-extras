@@ -42,29 +42,30 @@ The following functions are included:
  - `\2`: Replaced with the second captured group
  - See the Boost Regex reference above for more information.
 - Math
- - Create Vectors
-  - `vzero(length)`: Create a 0-vector of a specific length
-  - `vone(length)`: Create a 1-vector of a specific length
-  - `vread(text)`: Read space-separated floating point values from text into a vector
-  - `vshow(text)`: Format a vector as a human readable string compatible with vread()
+  - Create Vectors
+    - `vzero(length)`: Create a 0-vector of a specific length
+    - `vone(length)`: Create a 1-vector of a specific length
+    - `vread(text)`: Read space-separated floating point values from text into a vector
+    - `vshow(text)`: Format a vector as a human readable string compatible with vread()
  - Unary Operators on Vectors or Scalars
-  - `sin(V)`
-  - `asin(V)`
-  - `cos(V)`
-  - `acos(V)`
-  - `tan(V)`
-  - `atan(V)`
-  - `log(V)`
-  - `exp(V)`
-  - `pow(V)`
-  - `sqrt(V)`
+    - `sin(V)`
+    - `asin(V)`
+    - `cos(V)`
+    - `acos(V)`
+    - `tan(V)`
+    - `atan(V)`
+    - `log(V)`
+    - `exp(V)`
+    - `pow(V)`
+    - `sqrt(V)`
  - Binary Operators on any combination of vector and scalars
-  - `add(V, V)`
-  - `subtract(V, V)`
-  - `mult(V, V)`
-  - `div(V, V)`
+    - `add(V, V)`
+    - `subtract(V, V)`
+    - `mult(V, V)`
+    - `div(V, V)`
  - Vector operations (operate only on vectors)
-  - `vsum(V)`: Compute the sum of a vector.
+    - `vsum(V)`: Compute the sum of a vector
+
 Install
 -------
 
