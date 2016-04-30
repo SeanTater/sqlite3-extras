@@ -22,7 +22,7 @@ SELECT sub("(\w+) lives by lake (\w+)", "$1 thinks $2 is cool.", column) FROM ta
 ```
 
 ### Vector Math
-SQLite omits a lot of pretty useful, ostensibly to reduce API footprint. As such, the functions provided here probably not as bulletproof as those in SQLite. But in practice they're still pretty good:
+SQLite omits a lot of functions, to reduce API footprint. As such, the functions provided here probably not as bulletproof as those in SQLite. But in practice they're still pretty useful:
 
 ```sql
 sqlite> .load sqlite3-reutil
