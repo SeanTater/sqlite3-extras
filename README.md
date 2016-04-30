@@ -1,11 +1,10 @@
 sqlite3-reutil
 ==============
-
-Regular Expression Extension for SQLite3
+Regular Expressions and Scalar/Vector Math for SQLite3
 
 Usage
 -----
-
+### Regular Expressions
 reutil adds to SQLite's builtin LIKE and GLOB expressions by adding full featured regular expression support.
 It's based on another [module that used PCRE.](https://github.com/ralight/sqlite3-pcre).
 Whereas its predecessor supported only matches, this supports searches, matches, and formatted replacements,
@@ -15,13 +14,55 @@ as implemented by the
  - [Regex syntax reference](http://www.boost.org/doc/libs/1_55_0/libs/regex/doc/html/boost_regex/syntax/perl_syntax.html) (Perl compatible)
  - [Replacement format reference](http://www.boost.org/doc/libs/1_55_0/libs/regex/doc/html/boost_regex/format/perl_format.html) (also Perl compatible)
 
-Examples
---------
+Examples:
 ```sql
-    SELECT * FROM table WHERE column MATCH "<tag [^>]+>";
-    SELECT * FROM table WHERE column SEARCH "is the (thir|four)teenth of May";
-    SELECT sub("(\w+) lives by lake (\w+)", "$1 thinks $2 is cool.", column) FROM table;
+SELECT * FROM table WHERE column MATCH "<tag [^>]+>";
+SELECT * FROM table WHERE column SEARCH "is the (thir|four)teenth of May";
+SELECT sub("(\w+) lives by lake (\w+)", "$1 thinks $2 is cool.", column) FROM table;
 ```
+
+### Vector Math
+SQLite omits a lot of pretty useful, ostensibly to reduce API footprint. As such, the functions provided here probably not as bulletproof as those in SQLite. But in practice they're still pretty good:
+
+```sql
+sqlite> .load sqlite3-reutil
+sqlite> SELECT sin(4);
+-0.756802495307928
+sqlite> SELECT vshow(sin(vread('3 7 6 1.2')));
+0.14112 0.656987 -0.279415 0.932039
+```
+
+The following functions are included:
+- Regular Expressions
+ - `match(regular expression, subject)`: Match the regular expression against the subject, only at the beginning.
+ - `search(regular expression, subject)`: Search through the subject to see if there is a match for the regular expression anywhere within the text
+ - `sub(regular expression, format string, subject)`: Replace any matches of the regular expression with the format string, with may contain backticks of the form:
+ - `\0`: Replaced with the whole match
+ - `\1`: Replaced with the first captured group
+ - `\2`: Replaced with the second captured group
+ - See the Boost Regex reference above for more information.
+- Math
+ - Create Vectors
+  - `vzero(length)`: Create a 0-vector of a specific length
+  - `vone(length)`: Create a 1-vector of a specific length
+  - `vread(text)`: Read space-separated floating point values from text into a vector
+  - `vshow(text)`: Format a vector as a human readable string compatible with vread()
+ - Unary Operators on Vectors or Scalars
+  - `sin(V)`
+  - `asin(V)`
+  - `cos(V)`
+  - `acos(V)`
+  - `tan(V)`
+  - `atan(V)`
+  - `log(V)`
+  - `exp(V)`
+  - `pow(V)`
+  - `sqrt(V)`
+ - Binary Operators on any combination of vector and scalars
+  - `add(V, V)`
+  - `subtract(V, V)`
+  - `mult(V, V)`
+  - `div(V, V)`
 
 Install
 -------
