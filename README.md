@@ -1,4 +1,4 @@
-sqlite3-reutil
+sqlite3-extras
 ==============
 Regular Expressions and Scalar/Vector Math for SQLite3
 
@@ -73,14 +73,14 @@ Install
 It includes a QMake project file, but you can also compile it by hand. It's very small.
 ```sh
 # Download
-git pull https://github.com/SeanTater/sqlite3-reutil.git && cd sqlite3-reutil
+git pull https://github.com/SeanTater/sqlite3-extras.git && cd sqlite3-extras
 make
 ```
 To begin using it, do any of the following:
-  - Open an `sqlite3` window, and  `.load sqlite3-reutil`, then do as you please.
-  - OR, use `SELECT load_extension('/path/to/sqlite3-reutil.so')`
+  - Open an `sqlite3` window, and  `.load sqlite3-extras`, then do as you please.
+  - OR, use `SELECT load_extension('/path/to/sqlite3-extras.so')`
     (replacing .so with .dylib on Mac, or .dll on Windows)
-  - OR, put `.load sqlite3-reutil` in `~/.sqliterc` so that it will load
+  - OR, put `.load sqlite3-extras` in `~/.sqliterc` so that it will load
     automatically every time you open `sqlite3`.
 
 
