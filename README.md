@@ -74,7 +74,7 @@ It includes a QMake project file, but you can also compile it by hand. It's very
 ```sh
 # Download
 git pull https://github.com/SeanTater/sqlite3-extras.git && cd sqlite3-extras
-make
+make build-mac # or build-linux
 ```
 To begin using it, do any of the following:
   - Open an `sqlite3` window, and  `.load sqlite3-extras`, then do as you please.
