@@ -73,7 +73,7 @@ Install
 It includes a QMake project file, but you can also compile it by hand. It's very small.
 ```sh
 # Download
-git pull https://github.com/SeanTater/sqlite3-extras.git && cd sqlite3-extras
+git clone https://github.com/SeanTater/sqlite3-extras.git && cd sqlite3-extras
 make build-mac # or build-linux
 ```
 To begin using it, do any of the following:
