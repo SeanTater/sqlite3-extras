@@ -7,6 +7,7 @@
 #include <sqlite3ext.h>
 SQLITE_EXTENSION_INIT1
 
+typedef double real;
 /**
   Get a string argument from SQLite. It assumes you already know it's there.
   You can check that with argc() or trust SQLite to do that. */
@@ -91,8 +92,6 @@ extern "C" {
   }
 
 
-
-
   /*****************************************************************************
    * Math
    */
@@ -100,20 +99,20 @@ extern "C" {
 
    /** Helper functions */
   /** Perform a unary operator on either a scalar or vector */
-  void vunop(sqlite3_context *ctx, sqlite3_value *arg, std::function<double(double)> unop) {
+  void vunop(sqlite3_context *ctx, sqlite3_value *arg, std::function<real(real)> unop) {
    switch (sqlite3_value_type(arg)) {
      case SQLITE_INTEGER:
      case SQLITE_FLOAT:
        sqlite3_result_double(ctx, unop(sqlite3_value_double(arg)));
        break;
      case SQLITE_BLOB: {
-       int len = sqlite3_value_bytes(arg) / sizeof(double);
-       double *vec = (double*) sqlite3_value_blob(arg);
-       double result_vec[len];
+       int len = sqlite3_value_bytes(arg) / sizeof(real);
+       real *vec = (real*) sqlite3_value_blob(arg);
+       real result_vec[len];
        for (int i=0; i<len; i++) {
          result_vec[i] = unop(vec[i]);
        }
-       sqlite3_result_blob(ctx, result_vec, len*sizeof(double), SQLITE_TRANSIENT);
+       sqlite3_result_blob(ctx, result_vec, len*sizeof(real), SQLITE_TRANSIENT);
        break;
      }
      default:
@@ -134,15 +133,15 @@ extern "C" {
       case SQLITE_FLOAT:
         return -1;
       case SQLITE_BLOB:
-        return sqlite3_value_bytes(arg) / sizeof(double);
+        return sqlite3_value_bytes(arg) / sizeof(real);
       default:
         return 0;
     }
   }
 
-  // Run a binary operation on two double vectors.
+  // Run a binary operation on two real vectors.
   // It's just choosing a type that makes this operation kinda hairy.
-  void vbinop(sqlite3_context *ctx, sqlite3_value **argv, std::function<double(double, double)> binop) {
+  void vbinop(sqlite3_context *ctx, sqlite3_value **argv, std::function<real(real, real)> binop) {
     int left_len = vecOrScalarLen(argv[0]);
     int right_len = vecOrScalarLen(argv[1]);
 
@@ -163,32 +162,32 @@ extern "C" {
       ));
     } else if (left_len == -1) {
       // Scalar-vector op
-      double left = sqlite3_value_double(argv[0]);
-      double *right_vec = (double*) sqlite3_value_blob(argv[1]);
-      double result_vec[right_len];
+      real left = sqlite3_value_double(argv[0]);
+      real *right_vec = (real*) sqlite3_value_blob(argv[1]);
+      real result_vec[right_len];
       for (int i=0; i<right_len; i++) {
         result_vec[i] = binop(left, right_vec[i]);
       }
-      sqlite3_result_blob(ctx, result_vec, right_len*sizeof(double), SQLITE_TRANSIENT);
+      sqlite3_result_blob(ctx, result_vec, right_len*sizeof(real), SQLITE_TRANSIENT);
     } else if (right_len == -1) {
       // Vector-scalar op
-      double *left_vec = (double*) sqlite3_value_blob(argv[0]);
-      double right = sqlite3_value_double(argv[1]);
-      double result_vec[left_len];
+      real *left_vec = (real*) sqlite3_value_blob(argv[0]);
+      real right = sqlite3_value_double(argv[1]);
+      real result_vec[left_len];
       for (int i=0; i<left_len; i++) {
         result_vec[i] = binop(left_vec[i], right);
       }
-      sqlite3_result_blob(ctx, result_vec, left_len*sizeof(double), SQLITE_TRANSIENT);
+      sqlite3_result_blob(ctx, result_vec, left_len*sizeof(real), SQLITE_TRANSIENT);
     } else {
       // Vector-vector op
       int len = fmin(left_len, right_len);
-      double *left_vec = (double*) sqlite3_value_blob(argv[0]);
-      double *right_vec = (double*) sqlite3_value_blob(argv[1]);
-      double result_vec[len];
+      real *left_vec = (real*) sqlite3_value_blob(argv[0]);
+      real *right_vec = (real*) sqlite3_value_blob(argv[1]);
+      real result_vec[len];
       for (int i=0; i<len; i++) {
         result_vec[i] = binop(left_vec[i], right_vec[i]);
       }
-      sqlite3_result_blob(ctx, result_vec, len*sizeof(double), SQLITE_TRANSIENT);
+      sqlite3_result_blob(ctx, result_vec, len*sizeof(real), SQLITE_TRANSIENT);
     }
   }
 
@@ -228,54 +227,109 @@ extern "C" {
   void sqlvzero(sqlite3_context *ctx, int argc, sqlite3_value **argv) {
     int len = sqlite3_value_int(argv[0]);
 
-    double result_vec[len];
+    real result_vec[len];
     for (int i=0; i<len; i++) {
       result_vec[i] = 0;
     }
-    sqlite3_result_blob(ctx, result_vec, len*sizeof(double), SQLITE_TRANSIENT);
+    sqlite3_result_blob(ctx, result_vec, len*sizeof(real), SQLITE_TRANSIENT);
   }
 
   // Create a new one vector
   void sqlvone(sqlite3_context *ctx, int argc, sqlite3_value **argv) {
     int len = sqlite3_value_int(argv[0]);
 
-    double result_vec[len];
+    real result_vec[len];
     for (int i=0; i<len; i++) {
       result_vec[i] = 1;
     }
-    sqlite3_result_blob(ctx, result_vec, len*sizeof(double), SQLITE_TRANSIENT);
+    sqlite3_result_blob(ctx, result_vec, len*sizeof(real), SQLITE_TRANSIENT);
   }
 
   // Add two vectors
   void sqladd(sqlite3_context *ctx, int argc, sqlite3_value **argv) {
-    vbinop(ctx, argv, [](double a, double b){ return a + b; });
+    vbinop(ctx, argv, [](real a, real b){ return a + b; });
   }
   // Subtract the second vector from the first
   void sqlsubtract(sqlite3_context *ctx, int argc, sqlite3_value **argv) {
-    vbinop(ctx, argv, [](double a, double b){ return a - b; });
+    vbinop(ctx, argv, [](real a, real b){ return a - b; });
   }
   // Multiply two vectors
   void sqlmult(sqlite3_context *ctx, int argc, sqlite3_value **argv) {
-    vbinop(ctx, argv, [](double a, double b){ return a * b; });
+    vbinop(ctx, argv, [](real a, real b){ return a * b; });
   }
   // Divide two vectors
   void sqldiv(sqlite3_context *ctx, int argc, sqlite3_value **argv) {
-    vbinop(ctx, argv, [](double a, double b){ return a / b; });
+    vbinop(ctx, argv, [](real a, real b){ return a / b; });
   }
 
-  // Compute the dot product: It's not the most numerically stable way though.
+  // Compute the sum of the elements of a vector: It's not the most numerically
+  // stable way though.
   void sqlvsum(sqlite3_context *ctx, int argc, sqlite3_value **argv) {
     if (sqlite3_value_type(argv[0]) != SQLITE_BLOB) {
       sqlite3_result_error(ctx, "Vector sum requires a vector.", -1);
       return;
     }
-    int len = sqlite3_value_bytes(argv[0]) / sizeof(double);
-    double *vec = (double*) sqlite3_value_blob(argv[0]);
-    double end = 0.0;
+    int len = sqlite3_value_bytes(argv[0]) / sizeof(real);
+    real *vec = (real*) sqlite3_value_blob(argv[0]);
+    real end = 0.0;
     for (int i=0; i<len; i++) {
       end += vec[i];
     }
     sqlite3_result_double(ctx, end);
+  }
+
+  // Compute the product of the elements of a vector: It's not the most
+  // numerically stable way though.
+  void sqlvprod(sqlite3_context *ctx, int argc, sqlite3_value **argv) {
+    if (sqlite3_value_type(argv[0]) != SQLITE_BLOB) {
+      sqlite3_result_error(ctx, "Vector product requires a vector.", -1);
+      return;
+    }
+    int len = sqlite3_value_bytes(argv[0]) / sizeof(real);
+    real *vec = (real*) sqlite3_value_blob(argv[0]);
+    real end = 0.0;
+    for (int i=0; i<len; i++) {
+      end *= vec[i];
+    }
+    sqlite3_result_double(ctx, end);
+  }
+
+  // Compute the dot product: It's not the most numerically stable way though.
+  void sqldot(sqlite3_context *ctx, int argc, sqlite3_value **argv) {
+    if (sqlite3_value_type(argv[0]) != SQLITE_BLOB
+        || sqlite3_value_type(argv[1]) != SQLITE_BLOB) {
+      sqlite3_result_error(ctx, "Dot product requires two vectors.", -1);
+      return;
+    }
+    int len = fmin(sqlite3_value_bytes(argv[0]), sqlite3_value_bytes(argv[1]))
+              / sizeof(real);
+
+    real *a = (real*) sqlite3_value_blob(argv[0]);
+    real *b = (real*) sqlite3_value_blob(argv[1]);
+    real end = 0.0;
+    for (int i=0; i<len; i++) {
+      end += a[i] * b[i];
+    }
+    sqlite3_result_double(ctx, end);
+  }
+
+  // Compute the cosine similarity between two vectors
+  void sqlcossim(sqlite3_context *ctx, int argc, sqlite3_value **argv) {
+    if (sqlite3_value_type(argv[0]) != SQLITE_BLOB
+        || sqlite3_value_type(argv[1]) != SQLITE_BLOB) {
+      sqlite3_result_error(ctx, "Cossim requires two vectors.", -1);
+      return;
+    }
+    int len = fmin(sqlite3_value_bytes(argv[0]), sqlite3_value_bytes(argv[1]))
+              / sizeof(real);
+
+    real *a = (real*) sqlite3_value_blob(argv[0]);
+    real *b = (real*) sqlite3_value_blob(argv[1]);
+    real end = 0.0;
+    real asq = 0.0; for (int i=0; i<len; i++) asq += a[i] * a[i];
+    real bsq = 0.0; for (int i=0; i<len; i++) bsq += b[i] * b[i];
+    real absq = 0.0; for (int i=0; i<len; i++) absq += a[i] * b[i];
+    sqlite3_result_double(ctx, absq / (sqrt(asq) * sqrt(bsq)));
   }
 
   // Read a vector from a space separated string
@@ -283,17 +337,17 @@ extern "C" {
     const char *text = getSQLiteString(ctx, argv[0], "vread", "space separated floating point values");
     std::string str(text);
     std::stringstream stream(str);
-    std::vector<double> vec;
-    for (double item; stream >> item;) {
+    std::vector<real> vec;
+    for (real item; stream >> item;) {
       vec.push_back(item);
     }
-    sqlite3_result_blob(ctx, &vec.front(), vec.size()*sizeof(double), SQLITE_TRANSIENT);
+    sqlite3_result_blob(ctx, &vec.front(), vec.size()*sizeof(real), SQLITE_TRANSIENT);
   }
 
   // Write a vector to a space separated string
   void sqlvshow(sqlite3_context *ctx, int argc, sqlite3_value **argv) {
-    int len = sqlite3_value_bytes(argv[0]) / sizeof(double);
-    double *vec = (double*) sqlite3_value_blob(argv[0]);
+    int len = sqlite3_value_bytes(argv[0]) / sizeof(real);
+    real *vec = (real*) sqlite3_value_blob(argv[0]);
     std::stringstream stream;
     for (int i=0; i<len; i++) {
       stream << vec[i] << ' ';
@@ -332,6 +386,9 @@ extern "C" {
     sqlite3_create_function(db, "mult", 2, SQLITE_UTF8 | SQLITE_DETERMINISTIC, NULL, sqlmult, NULL, NULL);
     sqlite3_create_function(db, "div", 2, SQLITE_UTF8 | SQLITE_DETERMINISTIC, NULL, sqldiv, NULL, NULL);
     sqlite3_create_function(db, "vsum", 1, SQLITE_UTF8 | SQLITE_DETERMINISTIC, NULL, sqlvsum, NULL, NULL);
+    sqlite3_create_function(db, "vprod", 1, SQLITE_UTF8 | SQLITE_DETERMINISTIC, NULL, sqlvprod, NULL, NULL);
+    sqlite3_create_function(db, "dot", 2, SQLITE_UTF8 | SQLITE_DETERMINISTIC, NULL, sqldot, NULL, NULL);
+    sqlite3_create_function(db, "cossim", 2, SQLITE_UTF8 | SQLITE_DETERMINISTIC, NULL, sqlcossim, NULL, NULL);
     return 0;
   }
 }

@@ -56,16 +56,18 @@ The following functions are included:
     - `atan(V)`
     - `log(V)`
     - `exp(V)`
-    - `pow(V)`
     - `sqrt(V)`
  - Binary Operators on any combination of vector and scalars
     - `add(V, V)`
     - `subtract(V, V)`
     - `mult(V, V)`
     - `div(V, V)`
+    - `pow(V, V)`
  - Vector operations (operate only on vectors)
-    - `vsum(V)`: Compute the sum of a vector
-
+    - `vsum(V)`: Compute the sum of the elements of a vector
+    - `vprod(V)`: Compute the product of the elements of a vector
+    - `dot(V, V)`: Compute the dot product of two vectors
+    - `cossim(V, V)`: Compute the cosine similarity of two vectors
 
 Install
 -------
@@ -111,3 +113,11 @@ play with it or know more about what this does, check the
 [options list](https://www.sqlite.org/compile.html)
 and also check out
 [how to compile sqlite](https://www.sqlite.org/howtocompile.html).
+
+### I need something faster
+In disk-bound computations, it can be helpful to lower the precision and use
+32-bit precision instead of 64-bit. To do that you can change the typedef in
+`extras.cpp` from double to float and recompile. The vectors are not compatible
+so you may need to use a combination of the 64-bit vshow and 32-bit vread to
+convert existing tables. Considering the loss of precision however, consider
+this option hesistantly.
