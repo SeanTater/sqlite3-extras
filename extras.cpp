@@ -7,7 +7,12 @@
 #include <sqlite3ext.h>
 SQLITE_EXTENSION_INIT1
 
+#ifdef REDUCED_PRECISION
+typedef float real;
+#else
 typedef double real;
+#endif
+
 /**
   Get a string argument from SQLite. It assumes you already know it's there.
   You can check that with argc() or trust SQLite to do that. */
@@ -325,10 +330,20 @@ extern "C" {
 
     real *a = (real*) sqlite3_value_blob(argv[0]);
     real *b = (real*) sqlite3_value_blob(argv[1]);
-    real end = 0.0;
-    real asq = 0.0; for (int i=0; i<len; i++) asq += a[i] * a[i];
-    real bsq = 0.0; for (int i=0; i<len; i++) bsq += b[i] * b[i];
-    real absq = 0.0; for (int i=0; i<len; i++) absq += a[i] * b[i];
+
+    real asq = 0.0;
+    #pragma omp simd
+    for (int i=0; i<len; i++) asq += a[i] * a[i];
+
+    real bsq = 0.0;
+    #pragma omp simd
+    for (int i=0; i<len; i++) bsq += b[i] * b[i];
+
+
+    real absq = 0.0;
+    #pragma omp simd
+    for (int i=0; i<len; i++) absq += a[i] * b[i];
+
     sqlite3_result_double(ctx, absq / (sqrt(asq) * sqrt(bsq)));
   }
 

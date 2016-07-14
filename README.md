@@ -116,8 +116,7 @@ and also check out
 
 ### I need something faster
 In disk-bound computations, it can be helpful to lower the precision and use
-32-bit precision instead of 64-bit. To do that you can change the typedef in
-`extras.cpp` from double to float and recompile. The vectors are not compatible
-so you may need to use a combination of the 64-bit vshow and 32-bit vread to
-convert existing tables. Considering the loss of precision however, consider
-this option hesistantly.
+32-bit precision instead of 64-bit. To do that, pass -DREDUCED_PRECISION to gcc
+or use CPPFlags to do the same. The vectors are not compatible so you may need
+to use a combination of the 64-bit vshow and 32-bit vread to convert existing
+tables.
