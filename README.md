@@ -68,6 +68,9 @@ The following functions are included:
     - `vprod(V)`: Compute the product of the elements of a vector
     - `dot(V, V)`: Compute the dot product of two vectors
     - `cossim(V, V)`: Compute the cosine similarity of two vectors
+    - `vsum_aggregate(V)`: Aggregate many vectors into one using (+)
+    - `vavg_aggregate(V)`: Take the arithmetic mean of many vectors
+
 
 Install
 -------
