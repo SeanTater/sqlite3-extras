@@ -109,7 +109,8 @@ gcc -O3 -I. \
     -DSQLITE_THREADSAFE=2 \
     -DHAVE_USLEEP \
     -DHAVE_READLINE \
-    shell.c sqlite3.c -ldl -lreadline -lncurses -o sqlite3
+    -pthread \
+    shell.c sqlite3.c -lm -ldl -lreadline -lncurses -o sqlite3
 ```
 Then you'll have an `sqlite3` binary you can use with extensions. If you want to
 play with it or know more about what this does, check the
