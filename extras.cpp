@@ -5,6 +5,7 @@
 #include <sstream>
 #include <boost/regex.hpp>
 #include <sqlite3ext.h>
+#include <math.h>
 SQLITE_EXTENSION_INIT1
 
 #ifdef REDUCED_PRECISION
