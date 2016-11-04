@@ -5,7 +5,7 @@ Regular Expressions and Scalar/Vector Math for SQLite3
 Usage
 -----
 ### Regular Expressions
-reutil adds to SQLite's builtin LIKE and GLOB expressions by adding full featured regular expression support.
+`sqlite3-extras` adds to SQLite's builtin LIKE and GLOB expressions by adding full featured regular expression support.
 It's based on another [module that used PCRE.](https://github.com/ralight/sqlite3-pcre).
 Whereas its predecessor supported only matches, this supports searches, matches, and formatted replacements,
 as implemented by the
@@ -16,13 +16,16 @@ as implemented by the
 
 Examples:
 ```sql
-SELECT * FROM table WHERE column MATCH "<tag [^>]+>";
-SELECT * FROM table WHERE column SEARCH "is the (thir|four)teenth of May";
-SELECT sub("(\w+) lives by lake (\w+)", "$1 thinks $2 is cool.", column) FROM table;
+ -- The whole column must be the tag
+SELECT * FROM table WHERE column MATCH '<tag [^>]+>';
+ -- Can appear anywhere in the text
+SELECT * FROM table WHERE column SEARCH 'is the (thir|four)teenth of May';
+SELECT sub('(\w+) lives by lake (\w+)', '$1 thinks $2 is cool.', column) FROM table;
 ```
 
 ### Vector Math
-SQLite omits a lot of functions, to reduce API footprint. As such, the functions provided here probably not as bulletproof as those in SQLite. But in practice they're still pretty useful:
+This extension allows storing C float and double vectors in BLOBs. (It's quite different from the carray extension!)
+Keep in mind that the on-disk format is not really set in stone yet so make sure the major version of your extensions match for readers and writers!
 
 ```sql
 sqlite> .load sqlite3-reutil
