@@ -1,0 +1,14 @@
+[package]
+name = "sqlite3-extras"
+version = "0.1.0"
+authors = ["Sean Gallagher <stgallag@gmail.com>"]
+
+[dependencies]
+libc = "*"
+const-cstr = "^0.1"
+
+[lib]
+crate-type = ["dylib"]
+
+[build-dependencies]
+bindgen = "^0.32"
