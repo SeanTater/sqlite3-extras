@@ -32,7 +32,6 @@ trait VirtualTable {
         p_idx_info: *mut sqlite3_index_info);
 }
 
-
 unsafe fn infer_sqlite3_malloc<T>() -> Option<*mut T> {
     let size = mem::size_of::<T>();
     let mut p = sql_call!(malloc)(size as i32) as *mut T;
@@ -48,20 +47,14 @@ struct CursorWrapper<T> {
     inner: T
 }
 
-#[repr(C)]
 struct RangeCursor {
-    base: sqlite3_vtab_cursor,
     rowid: i64,
     value: i64,
     start: i64,
     stop: i64,
     step: i64
 }
-#[repr(C)]
-struct RangeVTab {
-    base: sqlite3_vtab
-    // You can put more here later.
-}
+struct RangeVTab ()
 
 unsafe extern "C" fn range_connect(
     db: *mut sqlite3,
@@ -75,7 +68,7 @@ unsafe extern "C" fn range_connect(
         "CREATE TABLE range(value, start HIDDEN, stop HIDDEN, step HIDDEN);").as_ptr()));
     
     // declare vtab succeeded
-    assert_ok!(match infer_sqlite3_malloc::<RangeVTab>() {
+    assert_ok!(match infer_sqlite3_malloc::<VTableWrapper<RangeVTab>>() {
         None => SQLITE_NOMEM as i32,
         Some(ptab) => {
             // Pass this pointer back to sqlite
@@ -94,7 +87,7 @@ unsafe extern "C" fn range_disconnect(vtab: *mut sqlite3_vtab) -> i32 {
 ** Constructor for a new RangeCursor object.
 */
 unsafe extern "C" fn range_open(p: *mut sqlite3_vtab, pp_cursor: *mut *mut sqlite3_vtab_cursor) -> i32 {
-    assert_ok!(match infer_sqlite3_malloc::<RangeCursor>() {
+    assert_ok!(match infer_sqlite3_malloc::<CursorWrapper<RangeCursor>>() {
         Some(pcur) => {
             *pp_cursor = pcur as *mut sqlite3_vtab_cursor;
             SQLITE_OK
