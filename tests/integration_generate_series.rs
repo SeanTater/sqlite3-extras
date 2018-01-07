@@ -16,5 +16,6 @@ fn can_generate_series() {
             Looked in target/debug/libsqlite3_extras.{dll,so,dylib}");
     conn.load_extension(path, None).unwrap();
 
-    conn.execute("SELECT * FROM generate_series(0, 10) LIMIT 5;", &[]).unwrap();
+    let rows: i64 = conn.query_row("SELECT count(*) FROM generate_series(0, 10) LIMIT 20;", &[], |r| r.get(0)).unwrap();
+    assert_eq!(rows, 11);
 }

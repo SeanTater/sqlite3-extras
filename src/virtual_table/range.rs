@@ -39,13 +39,6 @@ pub trait VirtualTable {
         tab: *mut sqlite3_vtab,
         p_idx_info: *mut sqlite3_index_info);
 }
-pub trait VirtualCursor {
-    fn next(&mut self);
-    fn column(&mut self);
-    fn rowid(&self);
-    fn eof(&self);
-}
-
 impl VirtualTable for RangeVTab {
     type Cursor = RangeCursor;
     fn vtable_eponymity() -> VirtualEponymity {
@@ -68,6 +61,13 @@ impl VirtualTable for RangeVTab {
         tab: *mut sqlite3_vtab,
         p_idx_info: *mut sqlite3_index_info) {}
 }
+
+trait VirtualCursor {
+    fn next(&mut self) {}
+    fn column(&mut self) {}
+    fn rowid(&self) {}
+    fn eof(&self) {}
+}
 impl VirtualCursor for RangeCursor {
     fn next(&mut self) {
         self.value += self.step;
@@ -78,10 +78,9 @@ impl VirtualCursor for RangeCursor {
     fn eof(&self) {}
 }
 
-
 unsafe fn infer_sqlite3_malloc<T>() -> Option<*mut T> {
     let size = mem::size_of::<T>();
-    let p = sql_call!(malloc)(size as i32) as *mut T;
+    let mut p = sql_call!(malloc)(size as i32) as *mut T;
     if p.is_null() { None } else { Some(p) }
 }
 
@@ -132,9 +131,7 @@ pub unsafe extern "C" fn range_connect<Tab: VirtualTable>(
     SQLITE_OK
 }
 
-pub unsafe extern "C" fn range_disconnect<Tab: VirtualTable>(
-    vtab: *mut sqlite3_vtab
-) -> i32 {
+pub unsafe extern "C" fn range_disconnect<Tab: VirtualTable>(vtab: *mut sqlite3_vtab) -> i32 {
     Box::from_raw(vtab as *mut VTabWrapper<Tab>);
     println!("disconnecting");
     // It will be dropped when it goes out of scope here.
@@ -145,15 +142,14 @@ pub unsafe extern "C" fn range_disconnect<Tab: VirtualTable>(
 ** Constructor for a new RangeCursor object.
 */
 pub unsafe extern "C" fn range_open<Tab: VirtualTable>(
-    p_vtab: *mut sqlite3_vtab,
+    _p: *mut sqlite3_vtab,
     pp_cursor: *mut *mut sqlite3_vtab_cursor
-) -> i32 {
+) -> i32 where
+    Tab: VirtualTable,
+    Tab::Cursor: Default
+{
     println!("opening");
-    let mut vtab = Box::from_raw(p_vtab as *mut VTabWrapper<Tab>);
-    let mut cursor = CursorWrapper {
-        base: Default::default(),
-        inner: vtab.inner.open_cursor()
-    };
+    let cursor : CursorWrapper<Tab::Cursor> = Default::default();
     *pp_cursor = Box::into_raw(Box::new(cursor)) as *mut sqlite3_vtab_cursor;
     SQLITE_OK
 }
@@ -177,7 +173,7 @@ pub unsafe extern "C" fn range_next<Tab: VirtualTable>(
     cur: *mut sqlite3_vtab_cursor
 ) -> i32 {
     let pcur = (cur as *mut CursorWrapper<Tab::Cursor>).as_mut().unwrap();
-    //pcur.inner.next();
+    pcur.inner.next();
     SQLITE_OK
 }
 
