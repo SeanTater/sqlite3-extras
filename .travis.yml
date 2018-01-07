@@ -25,22 +25,8 @@ before_script:
       fi
   - export PATH=$PATH:~/.cargo/bin
   
-
-# Code Coverage
-sudo: true
-before_install:
-  - sudo apt-get update
-addons:
-  apt:
-    packages:
-      - libcurl4-openssl-dev
-      - libelf-dev
-      - libdw-dev
-      - cmake
-      - gcc
-      - binutils-dev
-      
 # Coverage Report
+after_success:
   - |
       if [[ "$TRAVIS_OS_NAME" == "linux" && "$TRAVIS_RUST_VERSION" == "stable" ]]; then
         wget https://github.com/SimonKagstrom/kcov/archive/master.tar.gz &&
@@ -57,3 +43,19 @@ addons:
         bash <(curl -s https://codecov.io/bash) &&
         echo "Uploaded code coverage"
       fi
+  
+
+# Code Coverage
+sudo: true
+before_install:
+  - sudo apt-get update
+  
+addons:
+  apt:
+    packages:
+      - libcurl4-openssl-dev
+      - libelf-dev
+      - libdw-dev
+      - cmake
+      - gcc
+      - binutils-dev
