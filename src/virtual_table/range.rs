@@ -2,26 +2,34 @@ use sqlite3_raw::*;
 use macros;
 use std::slice;
 use std::os::raw::c_void;
-use std::ptr;
 use std::mem;
+use nodrop::NoDrop;
+use const_cstr::ConstCStr;
 
-enum VirtualEponymity {
+/// This represents whether a virtual table can be used as a virtual table,
+/// as a function, or both ways. Keep in mind this affects whether the
+/// create() and connect
+pub enum VirtualEponymity {
     NonEponymous,
     Eponymous,
     EponymousOnly
 }
-trait VirtualTable {
-    type Cursor;
-    fn vtable_eponymity() -> &'static VirtualEponymity;
-    fn vtable_definition() -> &'static str;
-    fn connect(&mut self);
-    fn disconnect(&mut self);
+pub trait VirtualTable {
+    type Cursor : VirtualCursor;
+    /// Whether this virtual table can be used via `CREATE TABLE`, as a function, or both
+    fn vtable_eponymity() -> VirtualEponymity;
+    fn vtable_definition() -> ConstCStr;
+    /// Create a virtual table with CREATE TABLE.
+    fn create() -> Self;
+    // fn destroy(Self);
+    
+    /// Create a virtual table using function
+    fn connect() -> Self;
+    //fn disconnect(Self);
+    
     fn open_cursor(&mut self) -> Self::Cursor;
-    fn close_cursor(&mut self, cursor: Self::Cursor);
-    fn next(&mut self,      cursor: &Self::Cursor);
-    fn column(&mut self,    cursor: &Self::Cursor);
-    fn rowid(&self,         cursor: &Self::Cursor);
-    fn eof(&self,           cursor: &Self::Cursor);
+    // fn close_cursor(&mut self, cursor: Self::Cursor);
+    
     fn filter(&self,
         idx_num: i32,
         idx_str: &str,
@@ -31,76 +39,133 @@ trait VirtualTable {
         tab: *mut sqlite3_vtab,
         p_idx_info: *mut sqlite3_index_info);
 }
+pub trait VirtualCursor {
+    fn next(&mut self);
+    fn column(&mut self);
+    fn rowid(&self);
+    fn eof(&self);
+}
+
+impl VirtualTable for RangeVTab {
+    type Cursor = RangeCursor;
+    fn vtable_eponymity() -> VirtualEponymity {
+        VirtualEponymity::EponymousOnly
+    }
+    fn vtable_definition() -> ConstCStr {
+        const_cstr!("CREATE TABLE range(value, start HIDDEN, stop HIDDEN, step HIDDEN);")
+    }
+    fn create()  -> Self { Default::default() }
+    fn connect() -> Self { Default::default() }
+    fn open_cursor(&mut self) -> Self::Cursor {
+        Default::default()
+    }
+    fn filter(&self,
+        idx_num: i32,
+        idx_str: &str,
+        args: &[*const i8],
+        cursor: &Self::Cursor) {}
+    fn best_index(&self,
+        tab: *mut sqlite3_vtab,
+        p_idx_info: *mut sqlite3_index_info) {}
+}
+impl VirtualCursor for RangeCursor {
+    fn next(&mut self) {
+        self.value += self.step;
+        self.rowid += 1;
+    }
+    fn column(&mut self) {}
+    fn rowid(&self) {}
+    fn eof(&self) {}
+}
+
 
 unsafe fn infer_sqlite3_malloc<T>() -> Option<*mut T> {
     let size = mem::size_of::<T>();
-    let mut p = sql_call!(malloc)(size as i32) as *mut T;
+    let p = sql_call!(malloc)(size as i32) as *mut T;
     if p.is_null() { None } else { Some(p) }
 }
 
-struct VTableWrapper<T> {
+#[repr(C)]
+#[derive(Default)]
+pub struct VTabWrapper<T> {
     base: sqlite3_vtab,
     inner: T
 }
-struct CursorWrapper<T> {
+#[repr(C)]
+#[derive(Default)]
+pub struct RangeVTab {
+}
+
+
+#[repr(C)]
+#[derive(Default)]
+pub struct CursorWrapper<T> {
     base: sqlite3_vtab_cursor,
     inner: T
 }
-
-struct RangeCursor {
+#[repr(C)]
+#[derive(Default)]
+pub struct RangeCursor {
     rowid: i64,
     value: i64,
     start: i64,
     stop: i64,
     step: i64
 }
-struct RangeVTab ()
 
-unsafe extern "C" fn range_connect(
+pub unsafe extern "C" fn range_connect<Tab: VirtualTable>(
     db: *mut sqlite3,
-    state: *mut c_void,
-    argc: i32,
-    argv: *const *const i8,
+    _state: *mut c_void,
+    _argc: i32,
+    _argv: *const *const i8,
     pp_vtab: *mut *mut sqlite3_vtab,
-    pz_err_: *mut *mut i8
+    _pz_err: *mut *mut i8
 ) -> i32 {
-    or_die!(sql_call!(declare_vtab)(db, const_cstr!(
-        "CREATE TABLE range(value, start HIDDEN, stop HIDDEN, step HIDDEN);").as_ptr()));
+    println!("connecting");
+    or_die!(sql_call!(declare_vtab)(db, Tab::vtable_definition().as_ptr()));
     
-    // declare vtab succeeded
-    assert_ok!(match infer_sqlite3_malloc::<VTableWrapper<RangeVTab>>() {
-        None => SQLITE_NOMEM as i32,
-        Some(ptab) => {
-            // Pass this pointer back to sqlite
-            *pp_vtab = ptab as *mut sqlite3_vtab;
-            SQLITE_OK
-        }
-    })
+    let vtab : VTabWrapper<Tab> = VTabWrapper{
+        base: Default::default(),
+        inner: Tab::create()
+    };
+    *pp_vtab = Box::into_raw(Box::new(vtab)) as *mut sqlite3_vtab;
+    SQLITE_OK
 }
 
-unsafe extern "C" fn range_disconnect(vtab: *mut sqlite3_vtab) -> i32 {
-  sql_call!(free)(vtab as *mut c_void);
-  SQLITE_OK
+pub unsafe extern "C" fn range_disconnect<Tab: VirtualTable>(
+    vtab: *mut sqlite3_vtab
+) -> i32 {
+    Box::from_raw(vtab as *mut VTabWrapper<Tab>);
+    println!("disconnecting");
+    // It will be dropped when it goes out of scope here.
+    SQLITE_OK
 }
 
 /*
 ** Constructor for a new RangeCursor object.
 */
-unsafe extern "C" fn range_open(p: *mut sqlite3_vtab, pp_cursor: *mut *mut sqlite3_vtab_cursor) -> i32 {
-    assert_ok!(match infer_sqlite3_malloc::<CursorWrapper<RangeCursor>>() {
-        Some(pcur) => {
-            *pp_cursor = pcur as *mut sqlite3_vtab_cursor;
-            SQLITE_OK
-        },
-        None => SQLITE_NOMEM
-    })
+pub unsafe extern "C" fn range_open<Tab: VirtualTable>(
+    p_vtab: *mut sqlite3_vtab,
+    pp_cursor: *mut *mut sqlite3_vtab_cursor
+) -> i32 {
+    println!("opening");
+    let mut vtab = Box::from_raw(p_vtab as *mut VTabWrapper<Tab>);
+    let mut cursor = CursorWrapper {
+        base: Default::default(),
+        inner: vtab.inner.open_cursor()
+    };
+    *pp_cursor = Box::into_raw(Box::new(cursor)) as *mut sqlite3_vtab_cursor;
+    SQLITE_OK
 }
 
 /*
 ** Destructor for a RangeCursor.
 */
-unsafe extern "C" fn range_close(cur: *mut sqlite3_vtab_cursor) -> i32 {
-    sql_call!(free)(cur as *mut c_void);
+pub unsafe extern "C" fn range_close<Tab: VirtualTable>(
+    cur: *mut sqlite3_vtab_cursor
+) -> i32 {
+    println!("closing");
+    Box::from_raw(cur as *mut CursorWrapper<Tab::Cursor>);
     SQLITE_OK
 }
 
@@ -108,10 +173,11 @@ unsafe extern "C" fn range_close(cur: *mut sqlite3_vtab_cursor) -> i32 {
 /*
 ** Advance a RangeCursor to its next row of output.
 */
-unsafe extern "C" fn range_next(cur: *mut sqlite3_vtab_cursor) -> i32 {
-    let pcur = (cur as *mut RangeCursor).as_mut().unwrap();
-    pcur.value += pcur.step;
-    pcur.rowid += 1;
+pub unsafe extern "C" fn range_next<Tab: VirtualTable>(
+    cur: *mut sqlite3_vtab_cursor
+) -> i32 {
+    let pcur = (cur as *mut CursorWrapper<Tab::Cursor>).as_mut().unwrap();
+    //pcur.inner.next();
     SQLITE_OK
 }
 
@@ -119,17 +185,17 @@ unsafe extern "C" fn range_next(cur: *mut sqlite3_vtab_cursor) -> i32 {
 ** Return values of columns for the row at which the RangeCursor
 ** is currently pointing.
 */
-unsafe extern "C" fn range_column(
+pub unsafe extern "C" fn range_column(
   cur: *mut sqlite3_vtab_cursor,   /* The cursor */
   ctx: *mut sqlite3_context,       /* First argument to sqlite3_result_...() */
   i: i32                           /* Which column to return */
 ) -> i32 {
-    let pcur = (cur as *mut RangeCursor).as_ref().unwrap();
+    let pcur = (cur as *mut CursorWrapper<RangeCursor>).as_ref().unwrap();
     let x = match i {
-        SERIES_COLUMN_START =>  pcur.start,
-        SERIES_COLUMN_STOP =>   pcur.stop,
-        SERIES_COLUMN_STEP =>   pcur.step,
-        _ =>                    pcur.value
+        SERIES_COLUMN_START =>  pcur.inner.start,
+        SERIES_COLUMN_STOP =>   pcur.inner.stop,
+        SERIES_COLUMN_STEP =>   pcur.inner.step,
+        _ =>                    pcur.inner.value
     };
     sql_call!(result_int64)(ctx, x);
     SQLITE_OK
@@ -140,11 +206,12 @@ unsafe extern "C" fn range_column(
 ** first row returned is assigned rowid value 1, and each subsequent
 ** row a value 1 more than that of the previous.
 */
-unsafe extern "C" fn range_rowid(
+pub unsafe extern "C" fn range_rowid(
     cur: *mut sqlite3_vtab_cursor,
-    p_rowid: *mut sqlite_int64) -> i32 {
-    let pcur = (cur as *mut RangeCursor).as_ref().unwrap();
-    *p_rowid = pcur.rowid;
+    p_rowid: *mut sqlite_int64
+) -> i32 {
+    let pcur = (cur as *mut CursorWrapper<RangeCursor>).as_ref().unwrap();
+    *p_rowid = pcur.inner.rowid;
     SQLITE_OK
 }
 
@@ -152,12 +219,14 @@ unsafe extern "C" fn range_rowid(
 ** Return TRUE if the cursor has been moved off of the last
 ** row of output.
 */
-unsafe extern "C" fn range_eof(cur: *mut sqlite3_vtab_cursor) -> i32 {
-    let pcur = (cur as *mut RangeCursor).as_ref().unwrap();
-    (if pcur.step < 0 {
-        pcur.value < pcur.start
+pub unsafe extern "C" fn range_eof(
+    cur: *mut sqlite3_vtab_cursor
+) -> i32 {
+    let pcur = (cur as *mut CursorWrapper<RangeCursor>).as_ref().unwrap();
+    (if pcur.inner.step < 0 {
+        pcur.inner.value < pcur.inner.start
     } else {
-        pcur.value > pcur.stop
+        pcur.inner.value > pcur.inner.stop
     }) as i32
 }
 
@@ -182,48 +251,48 @@ unsafe extern "C" fn range_eof(cur: *mut sqlite3_vtab_cursor) -> i32 {
 ** is pointing at the first row, or pointing off the end of the table
 ** (so that range_Eof() will return true) if the table is empty.
 */
-unsafe extern "C" fn range_filter(
+pub unsafe extern "C" fn range_filter(
     cur: *mut sqlite3_vtab_cursor, 
     idx_num: i32,
     idx_str: *const i8,
     argc: i32,
     pp_argv: *mut *mut sqlite3_value
 ) -> i32 {
-    let pcur = (cur as *mut RangeCursor).as_mut().unwrap();
+    let pcur = (cur as *mut CursorWrapper<RangeCursor>).as_mut().unwrap();
     let argv = slice::from_raw_parts(pp_argv, argc as usize);
     let mut i = 0usize;
     if idx_num & 1 != 0 {
-        pcur.start = sql_call!(value_int64)(argv[i]);
+        pcur.inner.start = sql_call!(value_int64)(argv[i]);
         i += 1;
     } else {
-        pcur.start = 0;
+        pcur.inner.start = 0;
     }
     if idx_num & 2 != 0{
-        pcur.stop = sql_call!(value_int64)(argv[i]);
+        pcur.inner.stop = sql_call!(value_int64)(argv[i]);
         i += 1;
     } else {
-        pcur.stop = 0xffffffff;
+        pcur.inner.stop = 0xffffffff;
     }
     if idx_num & 4 != 0 {
-        pcur.step = sql_call!(value_int64)(argv[i]);
+        pcur.inner.step = sql_call!(value_int64)(argv[i]);
         i += 1;
-        if pcur.step < 1 {
-            pcur.step = 1;
+        if pcur.inner.step < 1 {
+            pcur.inner.step = 1;
         }
     } else {
-        pcur.step = 1;
+        pcur.inner.step = 1;
     }
     if idx_num & 8 != 0 {
         //pcur->isDesc = 1;
-        pcur.value = pcur.stop;
-        if pcur.step > 0 {
-            pcur.value -= (pcur.stop - pcur.start) % pcur.step;
+        pcur.inner.value = pcur.inner.stop;
+        if pcur.inner.step > 0 {
+            pcur.inner.value -= (pcur.inner.stop - pcur.inner.start) % pcur.inner.step;
         }
     } else {
         //pcur->isDesc = 0;
-        pcur.value = pcur.start;
+        pcur.inner.value = pcur.inner.start;
     }
-    pcur.rowid = 1;
+    pcur.inner.rowid = 1;
     SQLITE_OK
 }
 
@@ -243,8 +312,8 @@ unsafe extern "C" fn range_filter(
 **  (4)  step = $value   -- constraint exists
 **  (8)  output in descending order
 */
-unsafe extern "C" fn range_best_index(
-  tab: *mut sqlite3_vtab,
+pub unsafe extern "C" fn range_best_index(
+  _tab: *mut sqlite3_vtab,
   p_idx_info: *mut sqlite3_index_info
 ) -> i32 {
     let mut idx_num = 0i32;        /* The query plan bitmask */
@@ -319,14 +388,14 @@ unsafe extern "C" fn range_best_index(
 pub static range_module : sqlite3_module = sqlite3_module {
     iVersion:       0,
     xCreate:        None,
-    xConnect:       Some(range_connect),
+    xConnect:       Some(range_connect::<RangeVTab>),
     xBestIndex:     Some(range_best_index),
-    xDisconnect:    Some(range_disconnect),
+    xDisconnect:    Some(range_disconnect::<RangeVTab>),
     xDestroy:       None,
-    xOpen:          Some(range_open),   // open a cursor
-    xClose:         Some(range_close),  // close a cursor
+    xOpen:          Some(range_open::<RangeVTab>),   // open a cursor
+    xClose:         Some(range_close::<RangeVTab>),  // close a cursor
     xFilter:        Some(range_filter), // configure scan constraints
-    xNext:          Some(range_next),   // advance a cursor
+    xNext:          Some(range_next::<RangeVTab>),   // advance a cursor
     xEof:           Some(range_eof),    // check for end of scan
     xColumn:        Some(range_column), // read data
     xRowid:         Some(range_rowid),  // read data

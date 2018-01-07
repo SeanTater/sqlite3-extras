@@ -33,10 +33,11 @@
 //!
 mod sqlite3_raw;
 #[macro_use] mod macros;
-mod virtual_table;
+pub mod virtual_table;
 
 #[macro_use] extern crate const_cstr;
 extern crate libc;
+extern crate nodrop;
 
 use std::ptr;
 use std::os::raw::*;
@@ -65,9 +66,6 @@ static mut SQL_API_PTR : *mut sqlite3_api_routines = ptr::null_mut();
 #[no_mangle]
 pub unsafe extern "C" fn sqlite3_extension_init(db: *mut sqlite3, err: *mut *mut c_char, api: *mut sqlite3_api_routines) -> i32 {
     SQL_API_PTR = api;
-    //println!("It's a {:?}", (*api).create_function);
-    let def_plain = |name: ConstCStr, action| 
-        sql_call!(create_function)(db, name.as_ptr(),  1, (SQLITE_UTF8 | SQLITE_DETERMINISTIC) as i32, ptr::null_mut(), Some(action), None, None);
     
     create_unop!(db, sin, f64::sin);
     create_unop!(db, asin, f64::asin);

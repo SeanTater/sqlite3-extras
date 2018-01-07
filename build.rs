@@ -15,6 +15,11 @@ fn main() {
         // The input header we would like to generate
         // bindings for.
         .header("wrapper.h")
+        // This makes initializing structs less verbose
+        .derive_default(true)
+        // This makes debugging easier
+        .derive_debug(true)
+        .impl_debug(true)
         // Guess SQLite's macros
         .parse_callbacks(Box::new(SQLiteEnums()))
         // Finish the builder and generate the bindings.
