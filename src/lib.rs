@@ -38,6 +38,7 @@ pub mod virtual_table;
 #[macro_use] extern crate const_cstr;
 extern crate libc;
 extern crate nodrop;
+extern crate smallvec;
 
 use std::ptr;
 use std::os::raw::*;
