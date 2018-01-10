@@ -6,6 +6,7 @@ use std::ffi::CStr;
 use std::slice;
 use std::os::raw::c_void;
 use std::mem;
+use std::ops::{Deref, DerefMut};
 
 /// This represents whether a virtual table can be used as a virtual table,
 /// as a function, or both ways. Keep in mind this affects whether the
@@ -50,20 +51,46 @@ pub trait VirtualCursor {
         args: &[*mut sqlite3_value]);
 }
 
-
+/// Wrapper for SQLite Virtual Table `sqlite3_vtab` objects
+///
+/// Implements Deref, only `.base` is overloaded.
 #[repr(C)]
 #[derive(Default)]
 pub struct VTabWrapper<T> {
     base: sqlite3_vtab,
     inner: T
 }
+impl<T> Deref for VTabWrapper<T> {
+    type Target = T;
+    fn deref(&self) -> &T {
+        &self.inner
+    }
+}
+impl<T> DerefMut for VTabWrapper<T> {
+    fn deref_mut(&mut self) -> &mut T {
+        &mut self.inner
+    }
+}
 
-
+/// Wrapper for SQLite Virtual Table Cursor `sqlite3_vtab_cursor` objects
+///
+/// Implements Deref, only `.base` is overloaded.
 #[repr(C)]
 #[derive(Default)]
 pub struct CursorWrapper<T> {
     base: sqlite3_vtab_cursor,
     inner: T
+}
+impl<T> Deref for CursorWrapper<T> {
+    type Target = T;
+    fn deref(&self) -> &T {
+        &self.inner
+    }
+}
+impl<T> DerefMut for CursorWrapper<T> {
+    fn deref_mut(&mut self) -> &mut T {
+        &mut self.inner
+    }
 }
 
 /// This wraps an SQLite context, which is where you return values
@@ -87,7 +114,7 @@ impl SQLiteRespondable for i64 {
     }
 }
 
-pub unsafe extern "C" fn range_connect<Tab: VirtualTable>(
+pub unsafe extern "C" fn vtab_connect<Tab: VirtualTable>(
     db: *mut sqlite3,
     _state: *mut c_void,
     _argc: i32,
@@ -106,7 +133,7 @@ pub unsafe extern "C" fn range_connect<Tab: VirtualTable>(
     SQLITE_OK
 }
 
-pub unsafe extern "C" fn range_disconnect<Tab: VirtualTable>(vtab: *mut sqlite3_vtab) -> i32 {
+pub unsafe extern "C" fn vtab_disconnect<Tab: VirtualTable>(vtab: *mut sqlite3_vtab) -> i32 {
     Box::from_raw(vtab as *mut VTabWrapper<Tab>);
     println!("disconnecting");
     // It will be dropped when it goes out of scope here.
@@ -116,7 +143,7 @@ pub unsafe extern "C" fn range_disconnect<Tab: VirtualTable>(vtab: *mut sqlite3_
 /*
 ** Constructor for a new RangeCursor object.
 */
-pub unsafe extern "C" fn range_open<Tab: VirtualTable>(
+pub unsafe extern "C" fn vtab_open<Tab: VirtualTable>(
     _p: *mut sqlite3_vtab,
     pp_cursor: *mut *mut sqlite3_vtab_cursor
 ) -> i32 where
@@ -132,7 +159,7 @@ pub unsafe extern "C" fn range_open<Tab: VirtualTable>(
 /*
 ** Destructor for a RangeCursor.
 */
-pub unsafe extern "C" fn range_close<Tab: VirtualTable>(
+pub unsafe extern "C" fn cursor_close<Tab: VirtualTable>(
     cur: *mut sqlite3_vtab_cursor
 ) -> i32 {
     println!("closing");
@@ -144,11 +171,11 @@ pub unsafe extern "C" fn range_close<Tab: VirtualTable>(
 /*
 ** Advance a RangeCursor to its next row of output.
 */
-pub unsafe extern "C" fn range_next<Tab: VirtualTable>(
+pub unsafe extern "C" fn cursor_next<Tab: VirtualTable>(
     cur: *mut sqlite3_vtab_cursor
 ) -> i32 {
     let pcur = (cur as *mut CursorWrapper<Tab::Cursor>).as_mut().unwrap();
-    pcur.inner.next();
+    pcur.next();
     SQLITE_OK
 }
 
@@ -156,13 +183,13 @@ pub unsafe extern "C" fn range_next<Tab: VirtualTable>(
 ** Return values of columns for the row at which the RangeCursor
 ** is currently pointing.
 */
-pub unsafe extern "C" fn range_column<Tab: VirtualTable>(
+pub unsafe extern "C" fn cursor_column<Tab: VirtualTable>(
   cur: *mut sqlite3_vtab_cursor,   /* The cursor */
   ctx: *mut sqlite3_context,       /* First argument to sqlite3_result_...() */
   i: i32                           /* Which column to return */
 ) -> i32 {
     let pcur = (cur as *mut CursorWrapper<Tab::Cursor>).as_ref().unwrap();
-    pcur.inner.column(&SQLiteResponder{ctx: ctx}, i);
+    pcur.column(&SQLiteResponder{ctx: ctx}, i);
     SQLITE_OK
 }
 
@@ -171,12 +198,12 @@ pub unsafe extern "C" fn range_column<Tab: VirtualTable>(
 ** first row returned is assigned rowid value 1, and each subsequent
 ** row a value 1 more than that of the previous.
 */
-pub unsafe extern "C" fn range_rowid<Tab: VirtualTable>(
+pub unsafe extern "C" fn cursor_rowid<Tab: VirtualTable>(
     cur: *mut sqlite3_vtab_cursor,
     p_rowid: *mut sqlite_int64
 ) -> i32 {
     let pcur = (cur as *mut CursorWrapper<Tab::Cursor>).as_ref().unwrap();
-    *p_rowid = pcur.inner.rowid();
+    *p_rowid = pcur.rowid();
     SQLITE_OK
 }
 
@@ -184,11 +211,11 @@ pub unsafe extern "C" fn range_rowid<Tab: VirtualTable>(
 ** Return TRUE if the cursor has been moved off of the last
 ** row of output.
 */
-pub unsafe extern "C" fn range_eof<Tab: VirtualTable>(
+pub unsafe extern "C" fn cursor_eof<Tab: VirtualTable>(
     cur: *mut sqlite3_vtab_cursor
 ) -> i32 {
     let pcur = (cur as *mut CursorWrapper<Tab::Cursor>).as_ref().unwrap();
-    pcur.inner.eof() as i32
+    pcur.eof() as i32
 }
 
 /*
@@ -212,7 +239,7 @@ pub unsafe extern "C" fn range_eof<Tab: VirtualTable>(
 ** is pointing at the first row, or pointing off the end of the table
 ** (so that range_Eof() will return true) if the table is empty.
 */
-pub unsafe extern "C" fn range_filter<Tab: VirtualTable>(
+pub unsafe extern "C" fn cursor_filter<Tab: VirtualTable>(
     cur: *mut sqlite3_vtab_cursor, 
     idx_num: i32,
     idx_c_str: *const i8,
@@ -226,7 +253,7 @@ pub unsafe extern "C" fn range_filter<Tab: VirtualTable>(
     } else {
         Some(CStr::from_ptr(idx_c_str))
     };
-    pcur.inner.filter(
+    pcur.filter(
         idx_num,
         idx_str,
         argv
@@ -252,12 +279,12 @@ pub unsafe extern "C" fn range_filter<Tab: VirtualTable>(
 **  (4)  step = $value   -- constraint exists
 **  (8)  output in descending order
 */
-pub unsafe extern "C" fn range_best_index<Tab: VirtualTable>(
+pub unsafe extern "C" fn vtab_best_index<Tab: VirtualTable>(
   pvtab: *mut sqlite3_vtab,
   p_idx_info: *mut sqlite3_index_info
 ) -> i32 {
     let vtab = (pvtab as *mut VTabWrapper<Tab>).as_ref().unwrap();
-    vtab.inner.best_index(
+    vtab.best_index(
         // Raw index info
         p_idx_info.as_mut().unwrap(),
         // Constraints

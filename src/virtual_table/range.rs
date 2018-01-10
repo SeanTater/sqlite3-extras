@@ -174,17 +174,17 @@ pub struct RangeCursor {
 pub static range_module : sqlite3_module = sqlite3_module {
     iVersion:       0,
     xCreate:        None,
-    xConnect:       Some(range_connect::<RangeVTab>),
-    xBestIndex:     Some(range_best_index::<RangeVTab>),
-    xDisconnect:    Some(range_disconnect::<RangeVTab>),
+    xConnect:       Some(vtab_connect::<RangeVTab>),
+    xBestIndex:     Some(vtab_best_index::<RangeVTab>),
+    xDisconnect:    Some(vtab_disconnect::<RangeVTab>),
     xDestroy:       None,
-    xOpen:          Some(range_open::<RangeVTab>),   // open a cursor
-    xClose:         Some(range_close::<RangeVTab>),  // close a cursor
-    xFilter:        Some(range_filter::<RangeVTab>), // configure scan constraints
-    xNext:          Some(range_next::<RangeVTab>),   // advance a cursor
-    xEof:           Some(range_eof::<RangeVTab>),    // check for end of scan
-    xColumn:        Some(range_column::<RangeVTab>), // read data
-    xRowid:         Some(range_rowid::<RangeVTab>),  // read data
+    xOpen:          Some(vtab_open::<RangeVTab>),   // open a cursor
+    xClose:         Some(cursor_close::<RangeVTab>),  // close a cursor
+    xFilter:        Some(cursor_filter::<RangeVTab>), // configure scan constraints
+    xNext:          Some(cursor_next::<RangeVTab>),   // advance a cursor
+    xEof:           Some(cursor_eof::<RangeVTab>),    // check for end of scan
+    xColumn:        Some(cursor_column::<RangeVTab>), // read data
+    xRowid:         Some(cursor_rowid::<RangeVTab>),  // read data
     xUpdate:        None,
     xBegin:         None,
     xSync:          None,
