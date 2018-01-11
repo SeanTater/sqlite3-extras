@@ -1,8 +1,19 @@
+//! SQLite connection internals
+//!
+//! These are public so that they will be in the documentation, but don't use
+//! them directly. Instead, use them as a reference on how the library
+//! operates.
+//! 
+//! The majority of free functions are glue code either
+//! between VirtualTable and sqlite_vtab, or
+//! between VirtualCursor and sqlite_vtab_cursor.
+
+use sqlite3_raw::*;
 use std::ffi::CStr;
 use std::slice;
 use std::os::raw::c_void;
-use std::mem;
 use std::ops::{Deref, DerefMut};
+use virtual_table::*;
 
 /// Wrapper for SQLite Virtual Table `sqlite3_vtab` objects
 ///
@@ -47,6 +58,8 @@ impl<T> DerefMut for CursorWrapper<T> {
 }
 
 
+/// Construct a VirtualTable.
+/// See [`sqlite3_module.xConnect`](https://sqlite.org/vtab.html)
 pub unsafe extern "C" fn vtab_connect<Tab: VirtualTable>(
     db: *mut sqlite3,
     _state: *mut c_void,
@@ -66,6 +79,8 @@ pub unsafe extern "C" fn vtab_connect<Tab: VirtualTable>(
     SQLITE_OK
 }
 
+/// Destroy a VirtualTable.
+/// See [`sqlite3_module.xDisconnect`](https://sqlite.org/vtab.html)
 pub unsafe extern "C" fn vtab_disconnect<Tab: VirtualTable>(vtab: *mut sqlite3_vtab) -> i32 {
     Box::from_raw(vtab as *mut VTabWrapper<Tab>);
     println!("disconnecting");
@@ -73,9 +88,8 @@ pub unsafe extern "C" fn vtab_disconnect<Tab: VirtualTable>(vtab: *mut sqlite3_v
     SQLITE_OK
 }
 
-/*
-** Constructor for a new RangeCursor object.
-*/
+/// Construct a VirtualCursor.
+/// See [`sqlite3_module.xOpen`](https://sqlite.org/vtab.html)
 pub unsafe extern "C" fn vtab_open<Tab: VirtualTable>(
     _p: *mut sqlite3_vtab,
     pp_cursor: *mut *mut sqlite3_vtab_cursor
@@ -89,9 +103,8 @@ pub unsafe extern "C" fn vtab_open<Tab: VirtualTable>(
     SQLITE_OK
 }
 
-/*
-** Destructor for a RangeCursor.
-*/
+/// Destroy a VirtualCursor.
+/// See [`sqlite3_module.xClose`](https://sqlite.org/vtab.html)
 pub unsafe extern "C" fn cursor_close<Tab: VirtualTable>(
     cur: *mut sqlite3_vtab_cursor
 ) -> i32 {
@@ -101,9 +114,8 @@ pub unsafe extern "C" fn cursor_close<Tab: VirtualTable>(
 }
 
 
-/*
-** Advance a RangeCursor to its next row of output.
-*/
+/// Advance a VirtualCursor.
+/// See [`sqlite3_module.xNext`](https://sqlite.org/vtab.html)
 pub unsafe extern "C" fn cursor_next<Tab: VirtualTable>(
     cur: *mut sqlite3_vtab_cursor
 ) -> i32 {
@@ -112,10 +124,11 @@ pub unsafe extern "C" fn cursor_next<Tab: VirtualTable>(
     SQLITE_OK
 }
 
-/*
-** Return values of columns for the row at which the RangeCursor
-** is currently pointing.
-*/
+/// Extract values from a VirtualCursor.
+/// See [`sqlite3_module.xOpen`](https://sqlite.org/vtab.html)
+///
+/// Return values of columns for the row at which the VirtualCursor
+/// is currently pointing.
 pub unsafe extern "C" fn cursor_column<Tab: VirtualTable>(
   cur: *mut sqlite3_vtab_cursor,   /* The cursor */
   ctx: *mut sqlite3_context,       /* First argument to sqlite3_result_...() */
@@ -126,11 +139,12 @@ pub unsafe extern "C" fn cursor_column<Tab: VirtualTable>(
     SQLITE_OK
 }
 
-/*
-** Return the rowid for the current row. In this implementation, the
-** first row returned is assigned rowid value 1, and each subsequent
-** row a value 1 more than that of the previous.
-*/
+/// Get a rowid for a VirtualCursor.
+/// See [`sqlite3_module.xRowid`](https://sqlite.org/vtab.html)
+///
+/// Return the rowid for the current row. In this implementation, the
+/// first row returned is assigned rowid value 1, and each subsequent
+/// row a value 1 more than that of the previous.
 pub unsafe extern "C" fn cursor_rowid<Tab: VirtualTable>(
     cur: *mut sqlite3_vtab_cursor,
     p_rowid: *mut sqlite_int64
@@ -140,10 +154,10 @@ pub unsafe extern "C" fn cursor_rowid<Tab: VirtualTable>(
     SQLITE_OK
 }
 
-/*
-** Return TRUE if the cursor has been moved off of the last
-** row of output.
-*/
+/// Return whether the Cursor has moved past the end.
+/// See [`sqlite3_module.xEof`](https://sqlite.org/vtab.html)
+/// 
+/// Note that in C, bool is an integer (0 or 1)
 pub unsafe extern "C" fn cursor_eof<Tab: VirtualTable>(
     cur: *mut sqlite3_vtab_cursor
 ) -> i32 {
@@ -237,11 +251,4 @@ pub unsafe extern "C" fn vtab_best_index<Tab: VirtualTable>(
         )
     );
     SQLITE_OK
-}
-
-
-unsafe fn infer_sqlite3_malloc<T>() -> Option<*mut T> {
-    let size = mem::size_of::<T>();
-    let mut p = sql_call!(malloc)(size as i32) as *mut T;
-    if p.is_null() { None } else { Some(p) }
 }

@@ -3,6 +3,7 @@ use macros;
 use std::ffi::CStr;
 use const_cstr::ConstCStr;
 use virtual_table::*;
+use virtual_table::internals::*;
 
 impl VirtualTable for RangeVTab {
     type Cursor = RangeCursor;
@@ -98,7 +99,7 @@ impl VirtualCursor for RangeCursor {
             _ =>                    self.value
         };
         // TODO: Don't call unsafe.
-        responder.respond(&x);
+        responder.respond_copy(&x);
     }
     fn rowid(&self) -> i64 { self.rowid }
     fn eof(&self) -> bool {
@@ -171,7 +172,7 @@ pub struct RangeCursor {
 ** This following structure defines all the methods for the 
 ** generate_series virtual table.
 */
-pub static range_module : sqlite3_module = sqlite3_module {
+pub static RANGE_MODULE : sqlite3_module = sqlite3_module {
     iVersion:       0,
     xCreate:        None,
     xConnect:       Some(vtab_connect::<RangeVTab>),

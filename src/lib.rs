@@ -43,7 +43,6 @@ extern crate smallvec;
 use std::ptr;
 use std::os::raw::*;
 use std::slice;
-use const_cstr::ConstCStr;
 use sqlite3_raw::*;
 
 /// How to push and pull types from SQLite (for extensions)
@@ -102,7 +101,7 @@ pub unsafe extern "C" fn sqlite3_extension_init(db: *mut sqlite3, err: *mut *mut
         *err = sqlite3_mprintf(const_cstr!("generate_series() requires SQLite 3.8.12 or later").as_ptr());
         return SQLITE_ERROR;
     } else {
-        return assert_ok!(sql_call!(create_module)(db, const_cstr!("generate_series").as_ptr(), &virtual_table::range::range_module, ptr::null_mut()));
+        return assert_ok!(sql_call!(create_module)(db, const_cstr!("generate_series").as_ptr(), &virtual_table::range::RANGE_MODULE, ptr::null_mut()));
     }
 }
 
