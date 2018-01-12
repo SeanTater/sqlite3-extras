@@ -135,7 +135,7 @@ pub unsafe extern "C" fn cursor_column<Tab: VirtualTable>(
   i: i32                           /* Which column to return */
 ) -> i32 {
     let pcur = (cur as *mut CursorWrapper<Tab::Cursor>).as_ref().unwrap();
-    pcur.column(&SQLiteResponder{ctx: ctx}, i);
+    pcur.column(i).push_to(ctx);
     SQLITE_OK
 }
 

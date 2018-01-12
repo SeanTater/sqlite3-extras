@@ -8,6 +8,7 @@ libc = "*"
 const-cstr = "^0.1"
 nodrop = "*"
 smallvec = "*"
+lazy_static = "*"
 
 [lib]
 crate-type = ["dylib"]

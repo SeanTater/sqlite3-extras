@@ -91,15 +91,14 @@ impl VirtualCursor for RangeCursor {
         self.value += self.step;
         self.rowid += 1;
     }
-    fn column(&self, responder: &SQLiteResponder, index: i32) {
+    fn column(&self, index: i32) -> SQLiteReturn {
         let x = match index {
             SERIES_COLUMN_START =>  self.start,
             SERIES_COLUMN_STOP =>   self.stop,
             SERIES_COLUMN_STEP =>   self.step,
             _ =>                    self.value
         };
-        // TODO: Don't call unsafe.
-        responder.respond_copy(&x);
+        x.into()
     }
     fn rowid(&self) -> i64 { self.rowid }
     fn eof(&self) -> bool {

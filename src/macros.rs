@@ -38,7 +38,9 @@ macro_rules! create_unop {
     ($db: expr, $name:ident, $f:expr) => {
         extern "C" fn $name(ctx: *mut sqlite3_context, argc: c_int, argv: *mut *mut sqlite3_value) {
             let args = unsafe{ slice::from_raw_parts(argv, argc as usize) };
-            $f(f64::from_sqlite(args[0])).to_sqlite(ctx);
+            let arg = unsafe{SQLiteValue::from_raw_unchecked(args[0])};
+            let res: SQLiteReturn = $f(arg.into()).into();
+            res.push_to(ctx);
         }
         sql_call!(create_function)(
             $db,

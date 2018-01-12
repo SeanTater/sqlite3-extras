@@ -34,8 +34,10 @@
 mod sqlite3_raw;
 #[macro_use] mod macros;
 pub mod virtual_table;
+pub mod dynamics;
 
 #[macro_use] extern crate const_cstr;
+#[macro_use] extern crate lazy_static;
 extern crate libc;
 extern crate nodrop;
 extern crate smallvec;
@@ -44,6 +46,7 @@ use std::ptr;
 use std::os::raw::*;
 use std::slice;
 use sqlite3_raw::*;
+use dynamics::*;
 
 /// How to push and pull types from SQLite (for extensions)
 pub trait SQLType {
