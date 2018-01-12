@@ -48,24 +48,12 @@ use std::slice;
 use sqlite3_raw::*;
 use dynamics::*;
 
-/// How to push and pull types from SQLite (for extensions)
-pub trait SQLType {
-    fn from_sqlite(arg: *mut sqlite3_value) -> Self;
-    fn to_sqlite(&self, ctx: *mut sqlite3_context);
-}
-
-impl SQLType for f64 {
-    fn from_sqlite(arg: *mut sqlite3_value) -> Self {
-        unsafe{ sqlite3_value_double(arg) }
-    }
-    fn to_sqlite(&self, ctx: *mut sqlite3_context) {
-        unsafe{ sqlite3_result_double(ctx, *self) };
-    }
-}
-
 static mut SQL_API_PTR : *mut sqlite3_api_routines = ptr::null_mut();
 
 
+/// Entry point for all SQLite Extensions
+///
+/// SQLite will call this when loading the extension
 #[no_mangle]
 pub unsafe extern "C" fn sqlite3_extension_init(db: *mut sqlite3, err: *mut *mut c_char, api: *mut sqlite3_api_routines) -> i32 {
     SQL_API_PTR = api;
@@ -101,10 +89,10 @@ pub unsafe extern "C" fn sqlite3_extension_init(db: *mut sqlite3, err: *mut *mut
     
     
     if sqlite3_libversion_number() < 3008012 {
-        *err = sqlite3_mprintf(const_cstr!("generate_series() requires SQLite 3.8.12 or later").as_ptr());
+        *err = sqlite3_mprintf(const_cstr!("range() requires SQLite 3.8.12 or later").as_ptr());
         return SQLITE_ERROR;
     } else {
-        return assert_ok!(sql_call!(create_module)(db, const_cstr!("generate_series").as_ptr(), &virtual_table::range::RANGE_MODULE, ptr::null_mut()));
+        return assert_ok!(sql_call!(create_module)(db, const_cstr!("range").as_ptr(), &virtual_table::range::RANGE_MODULE, ptr::null_mut()));
     }
 }
 

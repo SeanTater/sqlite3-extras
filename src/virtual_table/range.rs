@@ -103,9 +103,9 @@ impl VirtualCursor for RangeCursor {
     fn rowid(&self) -> i64 { self.rowid }
     fn eof(&self) -> bool {
         if self.step < 0 {
-            self.value < self.start
+            self.value <= self.start
         } else {
-            self.value > self.stop
+            self.value >= self.stop
         }
     }
     fn filter(&mut self,
